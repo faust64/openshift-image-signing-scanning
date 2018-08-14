@@ -79,6 +79,11 @@
   environment:
     GNUPGHOME: "{{ gpg_home }}/.gnupg"
 
+- name: Export Private Key
+  command: "gpg2 -export-secret-keys -a {{ gpg_key_gen_user_email }} >private.asc chdir={{ gpg_home }}/.gnupg creates={{ gpg_home }}/.gnupg/private.asc"
+  environment:
+    GNUPGHOME: "{{ gpg_home }}/.gnupg"
+
 - name: Delete local folder
   delegate_to: localhost
   file:
@@ -103,6 +108,7 @@
     - "{{ gpg_home }}/.gnupg/pubring.gpg"
     - "{{ gpg_home }}/.gnupg/secring.gpg"
     - "{{ gpg_home }}/.gnupg/trustdb.gpg"
+    - "{{ gpg_home }}/.gnupg/private.asc"
   
 - name: Fetch GPG Public Key
   fetch:

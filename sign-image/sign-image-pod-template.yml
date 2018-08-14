@@ -68,6 +68,7 @@ objects:
 
               docker pull $IMAGE
 
+              gpg2 --import /root/gnupg-src/private.asc
               atomic push --insecure --type atomic --sign-by $SIGNBY $USERNAME_PARAM $PASSWORD_PARAM $IMAGE
 
               docker rmi -f $IMAGE
@@ -76,7 +77,7 @@ objects:
       volumeMounts:
         - mountPath: /var/run/docker.sock
           name: docker-socket
-        - mountPath: /root/.gnupg
+        - mountPath: /root/gnupg-src
           name: gpg
     volumes:
       - name: gpg
