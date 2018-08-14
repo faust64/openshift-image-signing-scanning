@@ -1,11 +1,11 @@
-OpenShift Container Platform Image Signing and Image Scanning
+OpenShift Origin Image Signing and Image Scanning
 ========================================
 
 _This repository is currently undergoing active development. Functionality may be in flux_
 
 ## Overview
 
-The OpenShift Container Platform ecosystem contains mechanisms for securely managing container images. This includes but is not limited to [image signing](https://docs.openshift.com/container-platform/3.6/admin_guide/image_signatures.html) and [image scanning](https://docs.openshift.com/container-platform/3.6/security/container_content.html#security-content-scanning).
+The OpenShift Origin ecosystem contains mechanisms for securely managing container images. This includes but is not limited to [image signing](https://docs.openshift.com/container-platform/3.6/admin_guide/image_signatures.html) and [image scanning](https://docs.openshift.com/container-platform/3.6/security/container_content.html#security-content-scanning).
 
 A set of Ansible tools is available to aid in the automation and configuration of the target environment.
 
