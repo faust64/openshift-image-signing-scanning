@@ -11,14 +11,14 @@ objects:
   metadata:
     labels:
       template: ${APPLICATION_NAME}
-    name: python-35-rhel7
+    name: python-35-centos7
   spec:
     tags:
     - annotations:
-        openshift.io/imported-from: registry.access.redhat.com/rhscl/python-35-rhel7
+        openshift.io/imported-from: docker.io/centos/python-35-centos7
       from:
         kind: DockerImage
-        name: registry.access.redhat.com/rhscl/python-35-rhel7
+        name: docker.io/centos/python-35-centos7
       generation: 2
       importPolicy: {}
       name: latest
@@ -56,66 +56,14 @@ objects:
       dockerStrategy:
         from:
           kind: ImageStreamTag
-          name: python-35-rhel7:latest
+          name: python-35-centos7:latest
       type: Docker
     triggers:
     - type: ConfigChange
     - imageChange: {}
       type: ImageChange
-- apiVersion: extensions/v1beta1
-  kind: Deployment
-  metadata:
-    labels:
-      template: ${APPLICATION_NAME}
-    name: ${APPLICATION_NAME}
-  spec:
-    replicas: 1
-    selector:
-      matchLabels:
-        app: ${APPLICATION_NAME}
-        deploymentconfig: ${APPLICATION_NAME}
-    strategy:
-      type: Recreate
-    template:
-      metadata:
-        annotations:
-        labels:
-          app: ${APPLICATION_NAME}
-          deploymentconfig: ${APPLICATION_NAME}
-      spec:
-        volumes:
-        - name: config-volume
-          configMap:
-            name: ${APPLICATION_NAME}
-        containers:
-        - env:
-          - name: CONFIG_FILE
-            value: /etc/config/config.ini
-          image: ${APPLICATION_NAME}
-          imagePullPolicy: Always
-          name: ${APPLICATION_NAME}
-          ports:
-          - containerPort: 8080
-            protocol: TCP
-          resources: {}
-          terminationMessagePath: /dev/termination-log
-          volumeMounts:
-          - name: config-volume
-            mountPath: /etc/config
-        dnsPolicy: ClusterFirst
-        restartPolicy: Always
-        serviceAccountName: ${APPLICATION_NAME}
-        securityContext: {}
-        terminationGracePeriodSeconds: 10
-        nodeSelector:
-          ${NODE_SELECTOR_KEY}: ${NODE_SELECTOR_VALUE}
-        tolerations:
-        - key: image_management
-          operator: Equal
-          value: "true"
-          effect: NoExecute
-    test: false
 - apiVersion: v1
+  kind: ConfigMap
   data:
     config.ini: |
       [global]
@@ -127,11 +75,10 @@ objects:
       registries=docker-registry.default.svc:5000
       template_name=${TEMPLATE_NAME}
       signer_identity=${SIGN_BY}
-  kind: ConfigMap
-  metadata:
-    name: ${APPLICATION_NAME}
   labels:
     template: ${APPLICATION_NAME}
+  metadata:
+    name: ${APPLICATION_NAME}
 - apiVersion: v1
   kind: ServiceAccount
   metadata:
@@ -151,6 +98,75 @@ objects:
   - kind: ServiceAccount
     name: ${APPLICATION_NAME}
     namespace: ${NAMESPACE}
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    labels:
+      template: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: ${APPLICATION_NAME}
+        deploymentconfig: ${APPLICATION_NAME}
+    strategy:
+      type: RollingUpdate
+    template:
+      metadata:
+        annotations:
+        labels:
+          app: ${APPLICATION_NAME}
+          deploymentconfig: ${APPLICATION_NAME}
+      spec:
+        containers:
+        - env:
+          - name: CONFIG_FILE
+            value: /etc/config/config.ini
+          image: ${APPLICATION_NAME}
+          imagePullPolicy: Always
+          name: ${APPLICATION_NAME}
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          volumeMounts:
+          - name: config-volume
+            mountPath: /etc/config
+        dnsPolicy: ClusterFirst
+        nodeSelector:
+          ${NODE_SELECTOR_KEY}: ${NODE_SELECTOR_VALUE}
+        restartPolicy: Always
+        serviceAccountName: ${APPLICATION_NAME}
+        securityContext: {}
+        terminationGracePeriodSeconds: 10
+        tolerations:
+        - key: image_management
+          operator: Equal
+          value: "true"
+          effect: NoExecute
+        volumes:
+        - name: config-volume
+          configMap:
+            name: ${APPLICATION_NAME}
+    test: false
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      template: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}
+  spec:
+    ports:
+    - name: http
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    selector:
+      name: ${APPLICATION_NAME}
+    sessionAffinity: None
+    type: ClusterIP
 parameters:
 - description: The name for the application.
   name: APPLICATION_NAME
