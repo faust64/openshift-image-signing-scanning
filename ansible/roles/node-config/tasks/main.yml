@@ -2,26 +2,23 @@
 
 - name: Install Atomic CLI
   become: true
-  yum:
-    state: latest
-    name: "{{ item }}"
+  yum: name="{{ item }}" state=latest
   with_items:
-    - atomic
+  - atomic
 
 - name: Copy Public Key
   become: true
-  copy:
-    src: "{{ local_gpg_publickey }}"
-    dest: "{{ containers_public_key_dir }}/"
+  copy: src="{{ local_gpg_publickey }}" dest="{{ containers_public_key_dir }}/"
 
 - name: Configure Atomic Trust
   become: true
   command: "{{ item }}"
+  when: (restrict_local_keys | default(True)) == True
   with_items:
-    - "atomic --assumeyes trust default reject"
-    - "atomic --assumeyes trust add --sigstoretype web --sigstore https://access.redhat.com/webassets/docker/content/sigstore --pubkeys /etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release registry.access.redhat.com"
-    - "atomic --assumeyes trust add --pubkeys {{ containers_public_key_dir }}/{{ gpg_publickey_file }} {{ ocp_registry }}"
-    - "atomic --assumeyes trust add --sigstoretype atomic --pubkeys {{ containers_public_key_dir }}/{{ gpg_publickey_file }} {{ ocp_registry }}"
+  - "atomic --assumeyes trust default reject"
+  - "atomic --assumeyes trust add --sigstoretype web --sigstore https://access.redhat.com/webassets/docker/content/sigstore --pubkeys /etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release registry.access.redhat.com"
+  - "atomic --assumeyes trust add --pubkeys {{ containers_public_key_dir }}/{{ gpg_publickey_file }} {{ ocp_registry }}"
+  - "atomic --assumeyes trust add --sigstoretype atomic --pubkeys {{ containers_public_key_dir }}/{{ gpg_publickey_file }} {{ ocp_registry }}"
 
 - name: Configure Docker Dameon for Image Signatures
   become: true
@@ -30,10 +27,9 @@
     regexp: ^OPTIONS=.*
     line: "OPTIONS=' --selinux-enabled --log-driver=journald --signature-verification=true'"
   register: docker_image_signatures
+  when: (restrict_local_keys | default(True)) == True
 
 - name: Restart Docker Service
   become: true
-  service:
-    name: docker
-    state: restarted
-  when: docker_image_signatures.changed
+  service: name=docker state=restarted
+  when: docker_image_signatures is defined and docker_image_signatures.changed is defined and docker_image_signatures.changed == True
