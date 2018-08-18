@@ -1,0 +1,3 @@
+- hosts: nodes:!image_managers
+  roles:
+  - node-config
