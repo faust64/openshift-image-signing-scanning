@@ -46,7 +46,7 @@ objects:
 
           podTemplate(label: 'image-sign-scan-base-slave', cloud: 'openshift', serviceAccount: "$SERVICE_ACCOUNT", containers: [
           containerTemplate(name: 'image-sign-scan-base', image: "${env.IMAGE_SIGN_SCANNING_IMAGE}", ttyEnabled: true, privileged: true, command: 'cat', resourceRequestMemory: '1Gi'),
-          containerTemplate(name: 'jnlp', image: 'openshift3/jenkins-slave-base-rhel7', args: '${computer.jnlpmac} ${computer.name}')
+          containerTemplate(name: 'jnlp', image: 'docker.io/openshift/jenkins-slave-base-centos7', args: '${computer.jnlpmac} ${computer.name}')
           ],
           volumes: [
               hostPathVolume(
@@ -116,7 +116,7 @@ parameters:
   displayName: Image to Scan
   name: IMAGE_TO_SCAN
   required: true
-  value: registry.access.redhat.com/rhel7/rhel:latest
+  value: docker.io/centos:centos7
 - description: Name of the Service Account Used to Launch the Slave Pod.
   displayName: Slave Pod Service Account
   name: SERVICE_ACCOUNT

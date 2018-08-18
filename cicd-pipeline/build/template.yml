@@ -134,7 +134,7 @@ objects:
 
           podTemplate(label: 'image-sign-scan-base-slave', cloud: 'openshift', serviceAccount: "$SERVICE_ACCOUNT", containers: [
           containerTemplate(name: 'image-sign-scan-base', image: "${env.IMAGE_SIGN_SCANNING_IMAGE}", ttyEnabled: true, command: 'cat', resourceRequestMemory: '1Gi'),
-          containerTemplate(name: 'jnlp', image: 'openshift3/jenkins-slave-base-rhel7', args: '${computer.jnlpmac} ${computer.name}', resourceRequestMemory: '1Gi')
+          containerTemplate(name: 'jnlp', image: 'docker.io/openshift/jenkins-slave-base-centos7', args: '${computer.jnlpmac} ${computer.name}', resourceRequestMemory: '1Gi')
           ]) {
                     
                   node('image-sign-scan-base-slave') {
@@ -225,7 +225,7 @@ objects:
 
           podTemplate(label: 'image-sign-scan-base-slave', cloud: 'openshift', serviceAccount: "$SERVICE_ACCOUNT", containers: [
           containerTemplate(name: 'image-sign-scan-base', image: "${env.IMAGE_SIGN_SCANNING_IMAGE}", ttyEnabled: true, command: 'cat'),
-          containerTemplate(name: 'jnlp', image: 'openshift3/jenkins-slave-base-rhel7', args: '${computer.jnlpmac} ${computer.name}')
+          containerTemplate(name: 'jnlp', image: 'docker.io/openshift/jenkins-slave-base-centos7', args: '${computer.jnlpmac} ${computer.name}')
           ]) {
                     
                   node('image-sign-scan-base-slave') {
