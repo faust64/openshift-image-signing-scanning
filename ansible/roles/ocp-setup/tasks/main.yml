@@ -58,13 +58,13 @@
   - "oc process -p NAMESPACE={{ openshift_image_management_project_name }} -p SIGN_BY={{ gpg_publickey_file }} -f {{ openshift_configs_dest_dir }}/{{ openshift_event_controller_template }} | oc apply -n {{ openshift_image_management_project_name }} -f-"
   when: deploy_eventcontroller
 
-#- name: Remove Configuration Directories
-#  file:
-#    state: absent
-#    path: "{{ item }}"
-#  with_items:
-#  - "{{ gpg_core_files_remote_dir }}"
-#  - "{{ openshift_configs_dest_dir }}"
+- name: Remove Configuration Directories
+  file:
+    state: absent
+    path: "{{ item }}"
+  with_items:
+  - "{{ gpg_core_files_remote_dir }}"
+  - "{{ openshift_configs_dest_dir }}"
 
 - name: Export Default Project Template
   shell: oc adm create-bootstrap-project-template -o yaml > {{ tmp_default_project_template }}
