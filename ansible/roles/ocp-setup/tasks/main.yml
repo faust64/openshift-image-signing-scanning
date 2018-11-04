@@ -1,5 +1,3 @@
----
-
 - name: Copy GPG Files
   copy: src="{{ gpg_core_files_dir }}/" dest="{{ gpg_core_files_remote_dir }}"
 
@@ -36,23 +34,34 @@
 - name: Create GPG Secret
   shell: oc secret new {{ openshift_image_management_gpg_secret_name }} {{ gpg_core_files_remote_dir }} -n {{ openshift_image_management_project_name }}
 
+- name: Create OpenShift Configuration Subdirs
+  file: dest={{ openshift_configs_dest_dir }}{{ item }} state=directory owner=root group=root mode=0755
+  with_items:
+  - /
+  - /policy
+  - /image-sign-scan-base
+  - /image-scanning
+  - /sign-image
+  - /event-controller
+
 - name: Copy OpenShift Configurations
-  copy: src="{{ item }}" dest="{{ openshift_configs_dest_dir }}/"
+  template: src={{ item }}.j2 dest={{ openshift_configs_dest_dir }}/{{ item }} owner=root group=root mode=0644
   with_items: "{{ openshift_configs }}"
 
 - name: Configure Privileged SCC
   shell: oc adm policy add-scc-to-user privileged  -n {{ openshift_image_management_project_name }} -z {{ openshift_image_management_sa_name }}
 
-- name: Instantiate OpenShift Templates
+- name: Create OpenShift Templates
   shell: "{{ item }}"
   with_items:
-  - "oc process -p NAMESPACE={{ openshift_image_management_project_name }} -p SERVICE_ACCOUNT_NAME={{ openshift_image_management_sa_name }} -f {{ openshift_configs_dest_dir }}/{{ openshift_policy_template }} | oc apply -n {{ openshift_image_management_project_name }} -f-"
-  - "oc apply -n {{ openshift_image_management_project_name }} -f {{ openshift_configs_dest_dir }}/{{ openshift_sign_image_template }}"
-  - "oc apply -n {{ openshift_image_management_project_name }} -f {{ openshift_configs_dest_dir }}/{{ openshift_sign_image_pod_template }}"
-  - "oc apply -n {{ openshift_image_management_project_name }} -f {{ openshift_configs_dest_dir }}/{{ openshift_scan_image_pod_template }}"
-  - "oc process -p NAMESPACE={{ openshift_image_management_project_name }} -f {{ openshift_configs_dest_dir }}/{{ openshift_base_scan_template }} | oc apply -n {{ openshift_image_management_project_name }} -f-"
+  - "oc process -p NAMESPACE={{ openshift_image_management_project_name }} -p SERVICE_ACCOUNT_NAME={{ openshift_image_management_sa_name }} -f {{ openshift_configs_dest_dir }}/policy/{{ openshift_policy_template }} | oc apply -n {{ openshift_image_management_project_name }} -f-"
+  - "oc apply -n {{ openshift_image_management_project_name }} -f {{ openshift_configs_dest_dir }}/sign-image/{{ openshift_sign_image_template }}"
+  - "oc apply -n {{ openshift_image_management_project_name }} -f {{ openshift_configs_dest_dir }}/sign-image/{{ openshift_sign_image_pod_template }}"
+  - "oc apply -n {{ openshift_image_management_project_name }} -f {{ openshift_configs_dest_dir }}/image-scanning/{{ openshift_scan_image_pod_template }}"
+  - "oc apply -n {{ openshift_image_management_project_name }} -f {{ openshift_configs_dest_dir }}/image-scanning/pipeline.yml"
+  - "oc process -p NAMESPACE={{ openshift_image_management_project_name }} -f {{ openshift_configs_dest_dir }}/image-sign-scan-base/{{ openshift_base_scan_template }} | oc apply -n {{ openshift_image_management_project_name }} -f-"
 
-- name: Instantiate OpenShift Templates (Event Controller)
+- name: Instantiate Event Controller
   shell: "{{ item }}"
   with_items:
   - "oc process -p NAMESPACE={{ openshift_image_management_project_name }} -p SIGN_BY={{ gpg_publickey_file }} -f {{ openshift_configs_dest_dir }}/{{ openshift_event_controller_template }} | oc apply -n {{ openshift_image_management_project_name }} -f-"
@@ -98,20 +107,28 @@
   when: (replace_default_project_template | default(True)) == True
   with_items: "{{ groups.masters }}"
 
-- name: Restart Master Service
+- name: Restart Master Service (pre-3.10)
+  become: true
+  delegate_to: "{{ item['_ansible_delegated_vars']['ansible_delegated_host'] }}"
+  register: restart_masters_legacy
+  service:
+    name: "{{ ((groups['masters']|length|int > 1 or openshift_version | float >= 3.7) | default(True)) | ternary('origin-master-api','origin-master') }}"
+    state: restarted
+  with_items: "{{ master_config_result.results }}"
+  when: (replace_default_project_template | default(True)) == True and item.changed and openshift_version | float < 3.10
+
+- name: Restart Master Service (main)
   become: true
   delegate_to: "{{ item['_ansible_delegated_vars']['ansible_delegated_host'] }}"
   register: restart_masters
-  service:
-    name: "{{ ((groups['masters']|length|int > 1 or openshift_version | float >= 3.7) | default(True)) | ternary('atomic-openshift-master-api','atomic-openshift-master') }}"
-    state: restarted
+  shell: master-restart api
   with_items: "{{ master_config_result.results }}"
-  when: (replace_default_project_template | default(True)) == True and item.changed
+  when: (replace_default_project_template | default(True)) == True and item.changed and openshift_version | float <= 3.10
 
 - name: Pause to let Master Service Come Back Online
   pause:
     seconds: 10
-  when: restart_masters is defined and restart_masters.changed is defined and restart_masters.changed == True
+  when: ((restart_masters.changed | default(False)) or (restart_masters_legacy.changed | default(False)))
 
 - name: Sign Base Signer Scanner Image
   block:

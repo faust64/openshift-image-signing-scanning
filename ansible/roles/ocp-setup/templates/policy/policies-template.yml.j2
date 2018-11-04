@@ -1,0 +1,103 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: sa-template
+  annotations:
+    openshift.io/display-name: Service Acount Template
+    description: Template to create a service account
+objects:
+- apiVersion: v1
+  kind: ClusterRole
+  metadata:
+    creationTimestamp: null
+    name: signature-viewer
+  rules:
+  - apiGroups:
+    - image.openshift.io
+    - ""
+    attributeRestrictions: null
+    resources:
+    - imagestreamimages
+    verbs:
+    - get
+- apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    name: "${SERVICE_ACCOUNT_NAME}"
+    namespace: "${NAMESPACE}"
+- apiVersion: v1
+  kind: ClusterRoleBinding
+  metadata:
+    name: imagemanager-cluster-admin
+  roleRef:
+    name: cluster-admin
+  subjects:
+  - kind: ServiceAccount
+    name: "${SERVICE_ACCOUNT_NAME}"
+    namespace: "${NAMESPACE}"
+- apiVersion: v1
+  kind: Role
+  metadata:
+    creationTimestamp: null
+    name: public-resource-viewer
+  rules:
+  - apiGroups:
+    - template.openshift.io
+    - ""
+    attributeRestrictions: null
+    resources:
+    - templates
+    verbs:
+    - get
+  - apiGroups:
+    - template.openshift.io
+    - ""
+    attributeRestrictions: null
+    resources:
+    - processedtemplates
+    verbs:
+    - create
+  - apiGroups:
+    - image.openshift.io
+    - ""
+    attributeRestrictions: null
+    resources:
+    - imagestreams
+    - imagestreams/layers
+    - imagestreamimages
+    verbs:
+    - get
+  - apiGroups:
+    - ""
+    attributeRestrictions: null
+    resources:
+    - pods
+    - pods/exec
+    verbs:
+    - create
+    - get
+- apiVersion: v1
+  groupNames:
+  - system:authenticated
+  kind: RoleBinding
+  metadata:
+    creationTimestamp: null
+    name: public-resource-viewers
+  roleRef:
+    name: public-resource-viewer
+    namespace: "${NAMESPACE}"
+  subjects:
+  - kind: SystemGroup
+    name: system:authenticated
+  userNames: null
+parameters:
+- name: SERVICE_ACCOUNT_NAME
+  displayName: Service Account Name
+  description: Name of the service account to Create
+  value: imagemanager
+  required: true
+- name: NAMESPACE
+  displayName: Namespace
+  description: Namespace Containing Resources
+  value: image-management
+  required: true

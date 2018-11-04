@@ -1,0 +1,213 @@
+apiVersion: v1
+kind: Template
+labels:
+  template: event-controller
+metadata:
+  annotations:
+  name: event-controller
+objects:
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    labels:
+      template: ${APPLICATION_NAME}
+    name: python-35-centos7
+  spec:
+    tags:
+    - annotations:
+        openshift.io/imported-from: docker.io/centos/python-35-centos7
+      from:
+        kind: DockerImage
+        name: docker.io/centos/python-35-centos7
+      generation: 2
+      importPolicy: {}
+      name: latest
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    labels:
+      template: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}
+  spec:
+    lookupPolicy:
+      local: true
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    annotations:
+    labels:
+      template: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: ${APPLICATION_NAME}:latest
+    postCommit: {}
+    resources: {}
+    runPolicy: Serial
+    source:
+      type: Git
+      git:
+        uri: ${SOURCE_CODE_URL}
+        ref: ${SOURCE_CODE_REF}
+      contextDir: ${SOURCE_CODE_CONTEXT_DIR}
+    strategy:
+      dockerStrategy:
+        from:
+          kind: ImageStreamTag
+          name: python-35-centos7:latest
+      type: Docker
+    triggers:
+    - type: ConfigChange
+    - imageChange: {}
+      type: ImageChange
+- apiVersion: v1
+  kind: ConfigMap
+  data:
+    config.ini: |
+      [global]
+      k8s_resource=images
+      k8s_namespaced=False
+      watcher_plugin=imagesigner
+
+      [plugin_imagesigner]
+      registries=docker-registry.default.svc:5000
+      template_name=${TEMPLATE_NAME}
+      signer_identity=${SIGN_BY}
+  labels:
+    template: ${APPLICATION_NAME}
+  metadata:
+    name: ${APPLICATION_NAME}
+- apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    labels:
+      template: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}
+- apiVersion: v1
+  groupNames: null
+  kind: ClusterRoleBinding
+  metadata:
+    labels:
+      template: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}_cluster-admin
+  roleRef:
+    name: cluster-admin
+  subjects:
+  - kind: ServiceAccount
+    name: ${APPLICATION_NAME}
+    namespace: ${NAMESPACE}
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    labels:
+      template: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: ${APPLICATION_NAME}
+        deploymentconfig: ${APPLICATION_NAME}
+    strategy:
+      type: RollingUpdate
+    template:
+      metadata:
+        annotations:
+        labels:
+          app: ${APPLICATION_NAME}
+          deploymentconfig: ${APPLICATION_NAME}
+      spec:
+        containers:
+        - env:
+          - name: CONFIG_FILE
+            value: /etc/config/config.ini
+          image: ${APPLICATION_NAME}
+          imagePullPolicy: Always
+          name: ${APPLICATION_NAME}
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          volumeMounts:
+          - name: config-volume
+            mountPath: /etc/config
+        dnsPolicy: ClusterFirst
+{% if (restrict_local_keys | default(True)) == True %}
+        nodeSelector:
+          ${NODE_SELECTOR_KEY}: ${NODE_SELECTOR_VALUE}
+{% endif %}
+        restartPolicy: Always
+        serviceAccountName: ${APPLICATION_NAME}
+        securityContext: {}
+        terminationGracePeriodSeconds: 10
+{% if (restrict_local_keys | default(True)) == True %}
+        tolerations:
+        - key: image_management
+          operator: Equal
+          value: "true"
+          effect: NoExecute
+{% endif %}
+        volumes:
+        - name: config-volume
+          configMap:
+            name: ${APPLICATION_NAME}
+    test: false
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      template: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}
+  spec:
+    ports:
+    - name: http
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    selector:
+      name: ${APPLICATION_NAME}
+    sessionAffinity: None
+    type: ClusterIP
+parameters:
+- description: The name for the application.
+  name: APPLICATION_NAME
+  required: true
+  value: event-controller
+- description: Source code repo URL
+  name: SOURCE_CODE_URL
+  required: true
+  value: https://github.com/sabre1041/openshift-event-controller.git
+- description: Source code branch
+  name: SOURCE_CODE_REF
+  required: true
+  value: feature/imagesigner
+- description: Directory in your source code repo
+  name: SOURCE_CODE_CONTEXT_DIR
+  required: false
+- name: NAMESPACE
+  displayName: Namespace
+  description: Namespace Containing Resources
+  value: image-mangement
+- name: NODE_SELECTOR_KEY
+  displayName: Node Selector Key
+  description: Node Selector Key for the Job
+  value: "image_management"
+  required: true
+- name: NODE_SELECTOR_VALUE
+  displayName: Node Selector Value
+  description: Node Selector Value for the Job
+  value: "true"
+  required: true
+- description: Name of the template to instantiate
+  displayName: Template Name
+  name: TEMPLATE_NAME
+  required: true
+  value: sign-image-template
+- description: GPG Signer
+  displayName: Sign by
+  name: SIGN_BY
+  required: true
+  value: openshift@example.com

@@ -1,9 +1,7 @@
----
-
 gpg_core_files_dir: "{{ playbook_dir }}/gpg_remote/gpg_config"
 gpg_core_files_remote_dir: "~/.gpg-openshift"
-gpg_publickey_file: "openshift@example.com"
-openshift_version: 3.7
+gpg_publickey_file: openshift@example.com
+openshift_version: 3.11
 openshift_image_management_project_name: image-management
 openshift_image_management_project_display_name: Image Management
 openshift_image_management_node_label: "image_management=true"
@@ -27,11 +25,12 @@ openshift_scan_image_pod_template: scan-image-pod-template.yml
 openshift_event_controller_template: event-controller-template.yml
 
 openshift_configs:
-  - "{{ role_path }}/../../../policy/{{ openshift_policy_template }}"
-  - "{{ role_path }}/../../../image-sign-scan-base/{{ openshift_base_scan_template }}"
-  - "{{ role_path }}/../../../sign-image/{{ openshift_sign_image_template }}"
-  - "{{ role_path }}/../../../image-scanning/{{ openshift_scan_image_pod_template }}"
-  - "{{ role_path }}/../../../sign-image/{{ openshift_sign_image_pod_template }}"
-  - "{{ role_path }}/../../../event-controller/{{ openshift_event_controller_template }}"
+- "policy/{{ openshift_policy_template }}"
+- "image-sign-scan-base/{{ openshift_base_scan_template }}"
+- "sign-image/{{ openshift_sign_image_template }}"
+- image-scanning/pipeline.yml
+- "image-scanning/{{ openshift_scan_image_pod_template }}"
+- "sign-image/{{ openshift_sign_image_pod_template }}"
+- "event-controller/{{ openshift_event_controller_template }}"
 
 deploy_eventcontroller: False
