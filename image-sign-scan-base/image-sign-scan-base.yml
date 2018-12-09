@@ -40,14 +40,16 @@ objects:
               echo "enabled=1"; echo "gpgcheck=0"; ) >/etc/yum.repos.d/CentOS-Base.repo && \
             yum clean all && yum install -y --setopt=tsflags=nodocs docker atomic jq tar go libxslt openscap openscap-scanner git make which && \
             curl -sL https://github.com/openshift/origin/releases/download/v3.11.0/openshift-origin-server-v3.11.0-0cbc58b-linux-64bit.tar.gz >/usr/src/client.tgz && \
-            mkdir -p /usr/lib/golang/src/github.com/openshift && \
-            ( cd /usr/lib/golang/src/github.com/openshift && git clone https://github.com/openshift/image-inspector && cd image-inspector && make ) && \
+            mkdir -p /go/src/github.com/openshift /var/lib/image-inspector && \
+            ( cd /go/src/github.com/openshift && git clone https://github.com/openshift/image-inspector && cd image-inspector && \
+                GOBIN=/usr/bin GOPATH=/go CGO_ENABLED=0 go install -a -installsuffix cgo /go/src/github.com/openshift/image-inspector/cmd/image-inspector.go ) && \
+            curl -sL https://github.com/openshift/origin/releases/download/v3.11.0/openshift-origin-server-v3.11.0-0cbc58b-linux-64bit.tar.gz >/usr/src/client.tgz && \
             tar -C /usr/src -xzf /usr/src/client.tgz && \
-            yum remove -y git go make wich && yum clean all && \
-            strip /usr/lib/golang/src/github.com/openshift/image-inspector/_output/local/bin/local/image-inspector && \
-            mv /usr/lib/golang/src/github.com/openshift/image-inspector/_output/local/bin/local/image-inspector /usr/bin/image-inspector && \
+            yum remove -y git go make wich && \
+            yum clean all && \
+            strip /usr/bin/image-inspector && \
             mv /usr/src/openshift-origin-server-v3.11.0-0cbc58b-linux-64bit /usr/share/openshift && \
-            rm -rf /usr/lib/golang/src/github.com /usr/src/client.tgz /usr/src/image-inspector.rpm && \
+            rm -rf /var/cache/yum /usr/share/doc /usr/share/man /usr/lib/golang/src/github.com /usr/src/client.tgz && \
             for bin in kubectl oadm oc openshift openshift-node-config template-service-broker; do \
                 ln -sf /usr/share/openshift/$bin /usr/bin/; \
             done
